@@ -231,6 +231,7 @@ async function main() {
   }
 
   buildDist();
+  orch.printStats();
   console.log(bold(green('\n══ SNAKE RUN COMPLETE ══')));
   console.log(`Open workspaces/snake/index.html via a static server, or: npx serve workspaces/snake`);
   if (result.issues.length) {

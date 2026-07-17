@@ -13,7 +13,9 @@ worker — then integrates the results.
 - **Phase 0 ✅** — Project Model + DAG scheduler (7 unit tests)
 - **Phase 1 ✅** — the seam proof: planner froze a contract, two blind executors' code fit (`pnpm --filter @orchestrator/workers seam-proof`)
 - **Phase 2 ✅** — orchestrator: recursive planning, executor pool, serialized merges + compile gate, retry-with-feedback, DesignIssues
-- **Phase 3** — Snake built end-to-end with a Director screenshot-verify loop (`pnpm --filter @orchestrator/orchestrator snake`)
+- **Phase 3 ✅** — Snake built end-to-end; Director caught a real rendering bug from screenshots and its fix merged green (`pnpm --filter @orchestrator/orchestrator snake`)
+- **Phase 4 ✅** — dependency-aware planning (planner emits inter-child `dependsOn` edges) + per-worker run stats
+- **Phase 5 ✅** — generality proof: a non-game todo CLI built through the *identical* engine, all 6 functional smoke checks passing first try (`pnpm --filter @orchestrator/orchestrator cli`)
 
 The spine: the **Project Model** (permanent knowledge) and the **DAG scheduler**
 that enforces the one rule everything depends on —

@@ -41,6 +41,7 @@ interface PlanChild {
   spec: string;
   atomic: boolean;
   consumes: string[];
+  dependsOn: string[];
 }
 interface PlanOut {
   verdict: 'atomic' | 'split';
@@ -70,7 +71,7 @@ const PLAN_SCHEMA = {
       type: 'array',
       items: {
         type: 'object',
-        required: ['id', 'title', 'spec', 'atomic', 'consumes'],
+        required: ['id', 'title', 'spec', 'atomic', 'consumes', 'dependsOn'],
         properties: {
           id: { type: 'string', description: 'kebab-case, unique' },
           title: { type: 'string' },
@@ -81,6 +82,12 @@ const PLAN_SCHEMA = {
           },
           atomic: { type: 'boolean', description: 'true if one small file, one model call, checkable' },
           consumes: { type: 'array', items: { type: 'string' }, description: 'contract ids it must honour' },
+          dependsOn: {
+            type: 'array',
+            items: { type: 'string' },
+            description:
+              'sibling child ids whose OUTPUT FILES this child imports at build time. A child that imports another module (beyond the contract file) must list it here so it is scheduled after that module exists. Children that only share contract types need NO dependency.',
+          },
         },
       },
     },
@@ -103,6 +110,7 @@ export class Orchestrator {
   private readonly cfg: Required<RunConfig>;
   private mergeLock: Promise<void> = Promise.resolve();
   readonly designIssues: string[] = [];
+  readonly stats: { task: string; role: string; model: string; durationMs: number; turns: number }[] = [];
 
   constructor(cfg: RunConfig) {
     this.cfg = { maxDepth: 2, concurrency: 3, maxRetries: 1, ...cfg };
@@ -157,6 +165,14 @@ export class Orchestrator {
     };
   }
 
+  printStats(): void {
+    const total = this.stats.reduce((s, x) => s + x.durationMs, 0);
+    console.log(bold('\nWorker stats:'));
+    for (const s of this.stats)
+      console.log(dim(`  ${s.role.padEnd(9)} ${s.model.padEnd(7)} ${String(s.durationMs).padStart(7)}ms  ${s.turns} turns  ${s.task}`));
+    console.log(dim(`  total worker time: ${(total / 1000).toFixed(1)}s across ${this.stats.length} calls`));
+  }
+
   private async dispatch(task: Task): Promise<void> {
     if (task.atomic) return this.execute(task);
     return this.plan(task);
@@ -187,6 +203,7 @@ export class Orchestrator {
       ].join('\n'),
     });
     if (!res.ok || !res.output) throw new Error(`planner failed: ${res.error}`);
+    this.stats.push({ task: task.id, role: 'planner', model: 'sonnet', durationMs: res.durationMs, turns: res.numTurns });
     const plan = res.output;
 
     if (plan.verdict === 'atomic' || plan.children.length === 0) {
@@ -223,6 +240,14 @@ export class Orchestrator {
       });
       this.model.addEdge(task.id, child.id, 'depends-on');
       for (const cid of child.consumes) this.model.linkContract(child.id, cid, 'consumes');
+    }
+    // inter-child build dependencies (added after all children exist, FK-safe)
+    for (const child of plan.children) {
+      for (const dep of child.dependsOn ?? []) {
+        if (plan.children.some((c) => c.id === dep) && dep !== child.id) {
+          this.model.addEdge(dep, child.id, 'depends-on');
+        }
+      }
     }
     console.log(
       green(`   ✓ split into ${plan.children.length} children, froze ${plan.contracts.length} contract file(s)`) +
@@ -270,6 +295,7 @@ export class Orchestrator {
       removeWorktree(this.cfg.workspace, wtName);
       throw new Error(`executor failed: ${res.error}`);
     }
+    this.stats.push({ task: task.id, role: 'executor', model: 'haiku', durationMs: res.durationMs, turns: res.numTurns });
 
     // integrate: serialized merge + build gate
     const gateError = await this.withMergeLock(() => {

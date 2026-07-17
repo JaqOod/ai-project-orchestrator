@@ -7,7 +7,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "snake": "pnpm build && node --no-warnings dist/run-snake.js"
+    "snake": "pnpm build && node --no-warnings dist/run-snake.js",
+    "cli": "pnpm build && node --no-warnings dist/run-cli.js"
   },
   "dependencies": {
     "@orchestrator/core": "workspace:*",
