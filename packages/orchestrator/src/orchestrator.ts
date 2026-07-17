@@ -204,7 +204,7 @@ export class Orchestrator {
         `\nPROJECT CONVENTIONS (mandatory):\n${this.cfg.conventions}`,
         forceAtomic
           ? '\nDepth limit reached: you MUST return verdict "atomic" with no children.'
-          : `\nA task is atomic when it is one small file, completable in a single sitting, with a clear checkable result. Otherwise split into 3-8 children (mark each child atomic:true unless it genuinely needs further splitting) and emit the frozen contract file(s) they share. Child specs must be fully self-contained.`,
+          : `\nA task is atomic when it is one small file, completable in a single sitting, with a clear checkable result. Otherwise split into 3-8 children (mark each child atomic:true unless it genuinely needs further splitting) and emit the frozen contract file(s) they share. The contract files you emit are written automatically — do NOT create a child task for them. Every child's consumes list must use the exact contract ids you emit.`,
       ].join('\n'),
     });
     if (!res.ok || !res.output) throw new Error(`planner failed: ${res.error}`);
@@ -244,7 +244,17 @@ export class Orchestrator {
         createdBy: task.id,
       });
       this.model.addEdge(task.id, child.id, 'depends-on');
-      for (const cid of child.consumes) this.model.linkContract(child.id, cid, 'consumes');
+      for (const cid of child.consumes) {
+        // guard the seam plumbing itself: only link contract ids that actually
+        // exist (a mismatched id would block the child forever)
+        if (this.model.currentContract(cid)) {
+          this.model.linkContract(child.id, cid, 'consumes');
+        } else if (plan.contracts.length === 1) {
+          this.model.linkContract(child.id, plan.contracts[0]!.id, 'consumes');
+        } else {
+          console.log(yellow(`   ⚠ ${child.id} consumes unknown contract '${cid}' — link skipped`));
+        }
+      }
     }
     // inter-child build dependencies (added after all children exist, FK-safe)
     for (const child of plan.children) {
@@ -278,7 +288,9 @@ export class Orchestrator {
       .join('\n\n');
 
     const wtName = `${task.id}${attempt ? `-r${attempt}` : ''}`;
-    const wt = createWorktree(this.cfg.workspace, wtName);
+    // worktree creation mutates the shared .git — serialize it with merges
+    // (concurrent `git worktree add` races cause EPERM on Windows)
+    const wt = await this.withMergeLock(() => createWorktree(this.cfg.workspace, wtName));
     const res = await runWorker<{ filesWritten: string[]; summary: string }>({
       role: task.id,
       model: 'haiku',

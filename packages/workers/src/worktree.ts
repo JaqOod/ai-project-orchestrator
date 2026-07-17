@@ -37,8 +37,26 @@ export function createWorktree(repoDir: string, name: string): string {
   } catch {
     /* didn't exist */
   }
-  git(repoDir, 'worktree', 'add', '-q', '-b', `wt/${name}`, path);
-  return path;
+  // retry transient Windows EPERM/lock failures
+  for (let i = 0; ; i++) {
+    try {
+      git(repoDir, 'worktree', 'add', '-q', '-b', `wt/${name}`, path);
+      return path;
+    } catch (e) {
+      if (i >= 3) throw e;
+      const wait = 300 * (i + 1);
+      const until = Date.now() + wait;
+      while (Date.now() < until) {
+        /* brief sync backoff */
+      }
+      try {
+        git(repoDir, 'worktree', 'prune');
+        git(repoDir, 'branch', '-q', '-D', `wt/${name}`);
+      } catch {
+        /* fine */
+      }
+    }
+  }
 }
 
 /** Merge a worker's branch back into the workspace main branch. */

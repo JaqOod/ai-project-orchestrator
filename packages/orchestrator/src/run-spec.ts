@@ -154,9 +154,11 @@ async function verifyWeb(): Promise<Verdict> {
   const server = createServer(async (req, res) => {
     try {
       const p = join(WS, req.url === '/' ? 'index.html' : req.url!.slice(1));
-      res.writeHead(200, { 'content-type': MIME[extname(p)] ?? 'application/octet-stream' }).end(await readFile(p));
+      const body = await readFile(p); // read BEFORE writing headers
+      res.writeHead(200, { 'content-type': MIME[extname(p)] ?? 'application/octet-stream' }).end(body);
     } catch {
-      res.writeHead(404).end();
+      if (!res.headersSent) res.writeHead(404);
+      res.end();
     }
   }).listen(4173);
   try {
