@@ -120,6 +120,11 @@ export class Orchestrator {
   }
 
   async run(): Promise<{ done: number; failed: number; issues: string[] }> {
+    // commit any pre-seeded fixtures so worker worktrees inherit them and merges stay clean
+    git(this.cfg.workspace, 'add', '-A');
+    try {
+      git(this.cfg.workspace, 'commit', '-q', '-m', 'workspace fixtures');
+    } catch { /* nothing to commit */ }
     this.model.addTask({ id: 'root', title: 'root', spec: this.cfg.spec, status: 'draft' });
     return this.pump();
   }
@@ -279,10 +284,10 @@ export class Orchestrator {
       model: 'haiku',
       cwd: wt,
       allowWrites: true,
-      maxTurns: 20,
+      maxTurns: 50,
       schema: EXEC_SCHEMA,
       systemPrompt:
-        "You are an EXECUTOR implementing exactly one atomic task against frozen contracts. Honour the contract files exactly — never modify them. Create only the file(s) your task names. CONVENTION: every relative import MUST include the .ts extension (e.g. from './contracts.ts').",
+        "You are an EXECUTOR implementing exactly one atomic task against frozen contracts. Honour the contract files exactly — never modify them. Create only the file(s) your task names. Work ONLY inside the current working directory using relative paths — NEVER write outside it, never use absolute paths, never cd elsewhere, never create package.json or config files. CONVENTION: every relative import MUST include the .ts extension (e.g. from './contracts.ts').",
       prompt: [
         `TASK: ${task.title}`,
         `SPEC:\n${task.spec}`,
@@ -293,6 +298,10 @@ export class Orchestrator {
     });
     if (!res.ok) {
       removeWorktree(this.cfg.workspace, wtName);
+      console.log(yellow(`   ⚠ ${task.id} worker error: ${String(res.error).slice(0, 160)}`));
+      if (attempt < this.cfg.maxRetries) {
+        return this.execute(task, attempt + 1, `Previous worker attempt failed: ${res.error}`);
+      }
       throw new Error(`executor failed: ${res.error}`);
     }
     this.stats.push({ task: task.id, role: 'executor', model: 'haiku', durationMs: res.durationMs, turns: res.numTurns });

@@ -87,18 +87,24 @@ export async function runWorker<T = unknown>(spec: WorkerSpec): Promise<WorkerRe
   try {
     const parsed = JSON.parse(stdout.trim().split('\n').pop()!) as {
       is_error: boolean;
+      subtype?: string;
       num_turns: number;
       structured_output?: T;
       result?: string;
     };
     const output = parsed.structured_output ?? null;
+    const ok = !parsed.is_error && output !== null;
     return {
-      ok: !parsed.is_error && output !== null,
+      ok,
       output,
       durationMs,
       numTurns: parsed.num_turns,
       raw: parsed.result,
-      error: parsed.is_error ? parsed.result : undefined,
+      error: ok
+        ? undefined
+        : parsed.is_error
+          ? (parsed.result ?? `worker error (subtype: ${parsed.subtype ?? 'unknown'}, turns: ${parsed.num_turns})`)
+          : `no structured output returned; final text: ${String(parsed.result).slice(0, 300)}`,
     };
   } catch {
     return { ok: false, output: null, durationMs, numTurns: 0, error: `unparseable output: ${stdout.slice(0, 500)}` };

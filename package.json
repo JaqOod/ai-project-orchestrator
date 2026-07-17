@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "pnpm -r typecheck",
-    "demo": "pnpm --filter @orchestrator/core demo"
+    "demo": "pnpm --filter @orchestrator/core demo",
+    "orchestrate": "pnpm --filter @orchestrator/orchestrator orchestrate"
   },
   "devDependencies": {
     "typescript": "^5.6.3",
