@@ -1,0 +1,17 @@
+{
+  "name": "@orchestrator/orchestrator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "snake": "pnpm build && node --no-warnings dist/run-snake.js"
+  },
+  "dependencies": {
+    "@orchestrator/core": "workspace:*",
+    "@orchestrator/workers": "workspace:*",
+    "puppeteer-core": "^25.3.0"
+  }
+}

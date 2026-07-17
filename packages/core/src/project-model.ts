@@ -109,6 +109,10 @@ export class ProjectModel {
     return rows.map(rowToTask);
   }
 
+  setAtomic(id: string, atomic: boolean): void {
+    this.db.prepare('UPDATE tasks SET atomic = ? WHERE id = ?').run(atomic ? 1 : 0, id);
+  }
+
   setStatus(id: string, status: TaskStatus, note?: string): void {
     const current = this.getTask(id);
     if (!current) throw new Error(`setStatus: unknown task ${id}`);

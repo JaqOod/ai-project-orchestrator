@@ -8,9 +8,14 @@ worker — then integrates the results.
 - **Why / what** — `AI-Project-Orchestrator-Design-Foundations.md` (the constitution)
 - **How / roadmap** — `BUILD-PLAN.md` (the plan, with locked decisions)
 
-## Status: Phase 0 complete ✅
+## Status: Phases 0–3 built
 
-The spine is in place: the **Project Model** (permanent knowledge) and the **DAG scheduler**
+- **Phase 0 ✅** — Project Model + DAG scheduler (7 unit tests)
+- **Phase 1 ✅** — the seam proof: planner froze a contract, two blind executors' code fit (`pnpm --filter @orchestrator/workers seam-proof`)
+- **Phase 2 ✅** — orchestrator: recursive planning, executor pool, serialized merges + compile gate, retry-with-feedback, DesignIssues
+- **Phase 3** — Snake built end-to-end with a Director screenshot-verify loop (`pnpm --filter @orchestrator/orchestrator snake`)
+
+The spine: the **Project Model** (permanent knowledge) and the **DAG scheduler**
 that enforces the one rule everything depends on —
 
 > A task is READY only when every dependency is `done` **and** every interface contract it
@@ -29,6 +34,14 @@ packages/core/           @orchestrator/core — provider-agnostic engine
   src/scheduler.ts       the DAG scheduler + freeze/staleness/versioning
   test/dag.test.ts       Phase 0 exit test (the §4 combat seam, 7 cases)
   demo/run.mjs           runnable, colourised walkthrough of the scheduler
+packages/workers/        @orchestrator/workers — the swappable worker layer
+  src/runner.ts          claude -p headless worker (structured output, no API key)
+  src/worktree.ts        per-worker git worktree isolation + merge
+  src/seam-proof.ts      Phase 1 exit test (planner freezes, 2 blind executors fit)
+packages/orchestrator/   @orchestrator/orchestrator — the conductor
+  src/orchestrator.ts    recursive plan/execute pump, gates, retries, DesignIssues
+  src/run-snake.ts       Phase 3: Snake + Director screenshot-verify loop
+workspaces/              product repos the system builds INTO (generated)
 ```
 
 ## Prerequisites
@@ -40,14 +53,17 @@ packages/core/           @orchestrator/core — provider-agnostic engine
 
 ```bash
 pnpm install
-pnpm test        # run the Phase 0 exit test (7 passing)
+pnpm test        # Phase 0 exit test (7 passing)
 pnpm typecheck   # strict TypeScript, clean
-pnpm demo        # watch the scheduler drive the combat-seam DAG to completion
+pnpm demo        # watch the scheduler drive the combat-seam DAG
+
+# AI runs (need a logged-in Claude Code subscription; no API key):
+pnpm --filter @orchestrator/workers seam-proof     # Phase 1 exit test
+pnpm --filter @orchestrator/orchestrator snake     # Phase 3: build Snake end-to-end
 ```
 
-## Next: Phase 1 — the seam proof
-
-Wire the Claude Code CLI worker runner (`claude -p --output-format json --json-schema …`) so a
-**planner** freezes one contract and two **executors** independently implement against it in
-isolated git worktrees — proving that frozen contracts make independent workers fit together
-*without ever seeing each other's code*. See `BUILD-PLAN.md` §7.
+The Snake run: a Sonnet planner splits the spec and freezes the contract file; Haiku
+executors implement each module in parallel git worktrees; every merge must pass the tsc
+gate (failures retry once with the error fed back, then become DesignIssues); then the
+**Director** serves the game, screenshots it in headless Chrome, judges the screenshots,
+and re-queues fix tasks for up to two rounds. The finished game lands in `workspaces/snake`.
