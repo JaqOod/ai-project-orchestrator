@@ -1,0 +1,22 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+*.tsbuildinfo
+
+# Project Model databases (runtime state — not source)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+/data/
+
+# git worktrees created per-worker at runtime
+/workspaces/*/.worktrees/
+
+# logs & temp
+*.log
+.DS_Store
+Thumbs.db
