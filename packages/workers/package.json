@@ -1,0 +1,16 @@
+{
+  "name": "@orchestrator/workers",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "seam-proof": "pnpm build && node --no-warnings dist/seam-proof.js"
+  },
+  "dependencies": {
+    "@orchestrator/core": "workspace:*"
+  }
+}
