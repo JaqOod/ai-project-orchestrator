@@ -9,7 +9,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "snake": "pnpm -w run -r build && node --no-warnings dist/run-snake.js",
     "cli": "pnpm -w run -r build && node --no-warnings dist/run-cli.js",
-    "orchestrate": "pnpm -w run -r build && node --no-warnings dist/run-spec.js"
+    "orchestrate": "pnpm -w run -r build && node --no-warnings dist/run-spec.js",
+    "amend": "pnpm -w run -r build && node --no-warnings dist/run-amend.js"
   },
   "dependencies": {
     "@orchestrator/core": "workspace:*",

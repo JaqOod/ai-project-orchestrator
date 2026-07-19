@@ -62,7 +62,22 @@ pnpm demo        # watch the scheduler drive the combat-seam DAG
 # AI runs (need a logged-in Claude Code subscription; no API key):
 pnpm --filter @orchestrator/workers seam-proof     # Phase 1 exit test
 pnpm --filter @orchestrator/orchestrator snake     # Phase 3: build Snake end-to-end
+
+# The generic factory + studio loop:
+pnpm orchestrate <spec.md> --name <name> --type web|node|rust [--rounds 2]
+pnpm amend <name> <feedback.md>    # patch an already-built workspace in place
 ```
+
+## Studio mode
+
+Each built workspace persists its Project Model (`.orchestrator/model.db`) and a
+`studio.json` (name, type, spec, round history), so builds are iterable: `pnpm amend`
+re-opens the model, has a planner turn feedback + the existing source into new atomic
+tasks, pumps them through the same merge/gate machinery, appends the change to the
+workspace's living `SPEC.md`, and re-verifies. Product types are pluggable
+(`packages/orchestrator/src/product-types.ts`): `web` (canvas + screenshot Director),
+`node` (run-it verifier), `rust` (terminal, crossterm-only, cargo gate). The
+conversational front-end is the user-global `game-studio` Claude Code skill.
 
 The Snake run: a Sonnet planner splits the spec and freezes the contract file; Haiku
 executors implement each module in parallel git worktrees; every merge must pass the tsc

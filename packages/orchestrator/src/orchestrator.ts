@@ -33,6 +33,8 @@ export interface RunConfig {
   maxRetries?: number;
   /** returns null on success or an error report string */
   buildGate: (workspace: string) => string | null;
+  /** SQLite file for the Project Model; ':memory:' (default) for disposable runs */
+  modelPath?: string;
 }
 
 interface PlanChild {
@@ -113,8 +115,9 @@ export class Orchestrator {
   readonly stats: { task: string; role: string; model: string; durationMs: number; turns: number }[] = [];
 
   constructor(cfg: RunConfig) {
-    this.cfg = { maxDepth: 2, concurrency: 3, maxRetries: 1, ...cfg };
-    this.model = ProjectModel.open(':memory:');
+    this.cfg = { maxDepth: 2, concurrency: 3, maxRetries: 1, modelPath: ':memory:', ...cfg };
+    if (this.cfg.modelPath !== ':memory:') mkdirSync(dirname(this.cfg.modelPath), { recursive: true });
+    this.model = ProjectModel.open(this.cfg.modelPath);
     this.scheduler = new Scheduler(this.model);
     ensureWorkspaceRepo(cfg.workspace);
   }
@@ -125,7 +128,10 @@ export class Orchestrator {
     try {
       git(this.cfg.workspace, 'commit', '-q', '-m', 'workspace fixtures');
     } catch { /* nothing to commit */ }
-    this.model.addTask({ id: 'root', title: 'root', spec: this.cfg.spec, status: 'draft' });
+    // re-opened persistent models already carry the graph — never re-seed
+    if (!this.model.getTask('root')) {
+      this.model.addTask({ id: 'root', title: 'root', spec: this.cfg.spec, status: 'draft' });
+    }
     return this.pump();
   }
 
@@ -299,7 +305,7 @@ export class Orchestrator {
       maxTurns: 50,
       schema: EXEC_SCHEMA,
       systemPrompt:
-        "You are an EXECUTOR implementing exactly one atomic task against frozen contracts. Honour the contract files exactly — never modify them. Create only the file(s) your task names. Work ONLY inside the current working directory using relative paths — NEVER write outside it, never use absolute paths, never cd elsewhere, never create package.json or config files. CONVENTION: every relative import MUST include the .ts extension (e.g. from './contracts.ts').",
+        "You are an EXECUTOR implementing exactly one atomic task against frozen contracts. Honour the contract files exactly — never modify them. Create only the file(s) your task names. Work ONLY inside the current working directory using relative paths — NEVER write outside it, never use absolute paths, never cd elsewhere, never create package or build config files. Follow the PROJECT CONVENTIONS exactly.",
       prompt: [
         `TASK: ${task.title}`,
         `SPEC:\n${task.spec}`,
